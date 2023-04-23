@@ -12,7 +12,10 @@
     "format": "prettier --plugin-search-dir=. --write .",
     "cz": "cz",
     "prepare": "husky install",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "d-start": "docker build -t m4s-blog && docker create --name m4s-blog m4s-blog && docker start m4s-blog",
+    "d-shell": "docker container exec m4s-blog sh",
+    "d-rm": "docker container rm -f m4s-blog"
   },
   "dependencies": {
     "@astrojs/rss": "^2.3.0",
