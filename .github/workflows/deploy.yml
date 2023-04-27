@@ -6,36 +6,33 @@ on:
       - main
 
 jobs:
-  
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
+    
     steps:
-    - name: Checkout repo
+    - name: Checkout Repo
       uses: actions/checkout@v3
-    - name: Build Docker Image
-      env:
-        IMAGE_NAME: m4s-blog:$(date +%Y%m%d.%H%M)
+
+    - name: Create Version Tag
       run: |
+        export IMAGE_NAME=m4s-blog:$(date +%Y%m%d.%H%M)
         echo "image_name=$IMAGE_NAME" >> "$GITHUB_ENV"
-        docker build -t $IMAGE_NAME .
-        docker save -o /$IMAGE_NAME $IMAGE_NAME
-  
-  push:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Copy image via ssh/scp to host
+
+    - name: Build Docker Image
+      run: |
+        docker build -t ${{ env.image_name }} .
+        docker save -o ${{ env.image_name }} ${{ env.image_name }}
+
+    - name: Push Image to Host via SCP
       uses: appleboy/scp-action@v0.1.4
       with:
         host: ${{ secrets.HOST }}
         username: ${{ secrets.USERNAME }}
         key: ${{ secrets.SSH_KEY }}
-        source: /${{ env.image_name }}
+        source: ${{ env.image_name }}
         target: /
   
-  boot:
-    runs-on: ubuntu-latest
-    steps:
-    - name: SSH into host and start container
+    - name: Boot Container via SSH
       uses: appleboy/ssh-action@v0.1.10
       with:
         host: ${{ secrets.HOST }}
