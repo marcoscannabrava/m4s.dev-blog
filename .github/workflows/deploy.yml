@@ -1,21 +1,46 @@
-name: Deploy to m4s server
+name: deploy
 
 on:
   push:
-    branches: [ main ]
-  # Allows you to run this workflow manually from the Actions tab on GitHub.
-  workflow_dispatch:
+    branches:
+      - main
 
 jobs:
-  deploy:
+  
+  build:
     runs-on: ubuntu-latest
     steps:
-    - name: ssh commands to build and run docker image on the server
-      uses: appleboy/ssh-action@v0.1.8
+    - name: Build the Docker image
+      uses: actions/checkout@v3
+      env:
+        IMAGE_NAME: m4s-blog:$(date +%Y%m%d.%H%M)
+      run: |
+        echo "image_name=$IMAGE_NAME" >> "$GITHUB_ENV"
+        docker build -t $IMAGE_NAME .
+        docker save -o /$IMAGE_NAME $IMAGE_NAME
+  
+  push:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Copy image via ssh/scp to host
+      uses: appleboy/scp-action@v0.1.4
       with:
-        host: ${{ secrets.M4S_HOST }}
-        username: ${{ secrets.M4S_USERNAME }}
-        password: ${{ secrets.M4S_PASSWORD }}
-        port: ${{ secrets.M4S_PORT }}
-        key:  ${{ secrets.M4S_KEY }}
-        script: whoami
+        host: ${{ secrets.HOST }}
+        username: ${{ secrets.USERNAME }}
+        key: ${{ secrets.SSH_KEY }}
+        source: /${{ env.image_name }}
+        target: /
+  
+  boot:
+    runs-on: ubuntu-latest
+    steps:
+    - name: SSH into host and start container
+      uses: appleboy/ssh-action@v0.1.10
+      with:
+        host: ${{ secrets.HOST }}
+        username: ${{ secrets.USERNAME }}
+        key: ${{ secrets.SSH_KEY }}
+        script: |
+          docker load -i /${{ env.image_name }}
+          docker create --name m4s-blog ${{ env.image_name }}
+          docker start m4s-blog
